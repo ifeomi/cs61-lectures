@@ -1,4 +1,5 @@
 #include "hexdump.hh"
+#include <cstdint>
 
 struct example {
     const char* name1;
@@ -35,5 +36,23 @@ int main() {
     e.iptrs[2] = &e.ints[3];
     e.iptrs[3] = &e.ints[5];
 
-    hexdump_object(e);
+    char* b4_ptr = &e.bytes[4]; // pointer to value at index 4
+    char* b8_ptr = &e.bytes[8];
+
+    printf("%p\n", b4_ptr * b8_ptr);
+
+    uintptr_t b4_addr = (uintptr_t) b4_ptr;
+    uintptr_t b8_addr = (uintptr_t) b8_ptr;
+
+    hexdump_object(b4_ptr);
+    hexdump_object(b4_addr);
+
+    hexdump_object(*b4_ptr);
+
+    // tell the compiler to treat the addr as a pointer to a char/int
+    // then dereference it, printing 1/4 bytes
+    hexdump_object(* (char *) b4_addr);
+    hexdump_object(* (int *) b4_addr);
+
+    // hexdump_object(e);
 }
