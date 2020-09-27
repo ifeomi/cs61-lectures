@@ -3,14 +3,14 @@
 #include <cstring>
 #include "hexdump.hh"
 
-void add_trailer(char* ptr) {
+void add_trailer(char* ptr) {  // currently stores to a misaligned address
     int trailer_value = 1039849126;
     // Note: The syntax `reinterpret_cast<int*>(&ptr[1999])` used here
     // means the same thing as `((int*) &ptr[1999])`.
-    *reinterpret_cast<int*>(&ptr[1999]) = trailer_value;
+    *reinterpret_cast<int*>(&ptr[1996]) = trailer_value;
 }
 
-int read_trailer(char* ptr) {
+int read_trailer(char* ptr) { // currently loads from a misaligned address
     return *reinterpret_cast<int*>(&ptr[1999]);
 }
 
