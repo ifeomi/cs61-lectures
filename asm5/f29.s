@@ -6,17 +6,11 @@ _Z1fiii:
 .LFB0:
 	endbr64
 	cmpl	%edx, %esi
-	movl	%edx, %ecx
-	cmovge	%esi, %ecx
+	je	.L3
+	movl	%esi, %eax
+	ret
+.L3:
 	movl	%edi, %eax
-	cmpl	%ecx, %edi
-	jge	.L1
-	cmpl	%edx, %edi
-	cmovl	%edx, %edi
-	cmpl	%edi, %esi
-	movl	%edx, %eax
-	cmovge	%esi, %eax
-.L1:
 	ret
 .LFE0:
 	.size	_Z1fiii, .-_Z1fiii

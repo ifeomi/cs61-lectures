@@ -12,19 +12,17 @@ include ../common/rules.mk
 	$(CXX) $(CPPFLAGS) $(filter-out -g,$(CXXFLAGS)) $(O) $(DEPCFLAGS) -o $@ -c $<
 
 %.o: src/%.cc $(BUILDSTAMP)
-	$(CXX) $(CPPFLAGS) -I. $(filter-out -g,$(CXXFLAGS)) $(O) $(DEPCFLAGS) -o $@ -c $<
+	$(CXX) $(CPPFLAGS) $(filter-out -g,$(CXXFLAGS)) $(O) $(DEPCFLAGS) -o $@ -c $<
 
 %.s: src/%.cc $(BUILDSTAMP)
-	$(CXX) $(CPPFLAGS) -I. $(filter-out -g,$(CXXFLAGS)) $(O) $(DEPCFLAGS) -o $@ -S $<
+	$(CXX) $(CPPFLAGS) $(filter-out -g,$(CXXFLAGS)) $(O) $(DEPCFLAGS) -o $@ -S $<
 	@$(call xrun,$(call cleanasm,$@),CLEANASM $@)
 
-fundriver.o: fundriver.cc $(BUILDSTAMP)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(O) $(DEPCFLAGS) -o $@ -c $<
 
 %.o: %.s $(BUILDSTAMP)
 	$(CXX) -o $@ -c $<
 
-fun%: fun%.o fundriver.o
+fun%: fun%.o 
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(O) -o $@ $^
 
 

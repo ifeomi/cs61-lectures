@@ -1,16 +1,15 @@
-	.file	"f25.cc"
+	.file	"f41.cc"
 	.text
 	.globl	_Z1fiii
 	.type	_Z1fiii, @function
 _Z1fiii:
 .LFB0:
 	endbr64
-	cmpl	%edx, %esi
-	je	.L3
-	movl	%esi, %eax
-	ret
-.L3:
-	movl	%edi, %eax
+	imull	$1000, %edi, %edi
+	imull	$-10000, %esi, %esi
+	addl	%esi, %edi
+	imull	$-100000, %edx, %eax
+	addl	%edi, %eax
 	ret
 .LFE0:
 	.size	_Z1fiii, .-_Z1fiii

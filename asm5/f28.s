@@ -1,4 +1,4 @@
-	.file	"f24.cc"
+	.file	"f28.cc"
 	.text
 	.globl	_Z1fPKci
 	.type	_Z1fPKci, @function
