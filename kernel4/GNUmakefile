@@ -1,5 +1,5 @@
 QEMUIMAGEFILES = demoos.img
-all: $(QEMUIMAGEFILES) attack
+all: $(QEMUIMAGEFILES)
 
 # Place local configuration options, such as `CC=clang`, in
 # `config.mk` so you don't have to list them every time.
@@ -44,19 +44,36 @@ BOOT_OBJS = $(OBJDIR)/bootentry.o $(OBJDIR)/boot.o
 
 KERNEL_OBJS = $(OBJDIR)/k-exception.ko \
 	$(OBJDIR)/kernel.ko $(OBJDIR)/k-vmiter.ko \
-	$(OBJDIR)/k-hardware.ko \
+	$(OBJDIR)/k-hardware.ko $(OBJDIR)/k-memviewer.ko \
 	$(OBJDIR)/lib.ko
 KERNEL_LINKER_FILES = build/kernel.ld
 
-PROCESS_BINARIES = $(OBJDIR)/p-alice $(OBJDIR)/p-eve \
-	$(OBJDIR)/p-recurse
+PROCESSES = $(patsubst %.cc,%,$(wildcard p-*.cc))
 PROCESS_LIB_OBJS = $(OBJDIR)/lib.uo $(OBJDIR)/u-lib.uo
-PROCESS_OBJS = $(OBJDIR)/p-alice.uo $(OBJDIR)/p-eve.uo \
-	$(OBJDIR)/p-recurse.uo $(PROCESS_LIB_OBJS)
 PROCESS_LINKER_FILES = build/process.ld
 
 
 -include build/rules.mk
+
+
+# Define `WEENSYOS_FIRST_PROCESS` if appropriate
+RUNCMD_LASTWORD := $(filter run-%,$(MAKECMDGOALS))
+ifeq ($(words $(RUNCMD_LASTWORD)),1)
+RUNCMD_LASTWORD := $(lastword $(subst -, ,$(RUNCMD_LASTWORD)))
+ifneq ($(filter p-$(RUNCMD_LASTWORD),$(PROCESSES)),)
+RUNSUFFIX := $(RUNCMD_LASTWORD)
+WEENSYOS_FIRST_PROCESS := $(RUNCMD_LASTWORD)
+endif
+endif
+WEENSYOS_FIRST_PROCESS ?= hello
+
+ifneq ($(strip $(WEENSYOS_FIRST_PROCESS)),$(DEP_WEENSYOS_FIRST_PROCESS))
+FIRST_PROCESS_BUILDSTAMP := $(shell echo "DEP_WEENSYOS_FIRST_PROCESS:=$(WEENSYOS_FIRST_PROCESS)" > $(DEPSDIR)/_first_process.d)
+$(OBJDIR)/k-firstprocess.h: always
+endif
+ifeq ($(wildcard $(OBJDIR)/k-firstprocess.h),)
+KERNELBUILDSTAMPS += $(OBJDIR)/k-firstprocess.h
+endif
 
 
 # How to make object files
@@ -77,6 +94,9 @@ $(OBJDIR)/bootentry.o: $(OBJDIR)/%.o: \
 $(OBJDIR)/%.uo: %.cc $(BUILDSTAMPS)
 	$(call cxxcompile,$(CXXFLAGS) -O1 -DWEENSYOS_PROCESS -c $< -o $@,COMPILE $<)
 
+$(OBJDIR)/%.uo: %.S $(OBJDIR)/u-asm.h $(BUILDSTAMPS)
+	$(call assemble,-O2 -c $< -o $@,ASSEMBLE $<)
+
 
 # How to make supporting source files
 
@@ -84,8 +104,16 @@ $(OBJDIR)/k-asm.h: kernel.hh lib.hh types.h x86-64.h build/mkkernelasm.awk $(KER
 	$(call cxxcompile,-dM -E kernel.hh | awk -f build/mkkernelasm.awk | sort > $@,CREATE $@)
 	@if test ! -s $@; then echo '* Error creating $@!' 1>&2; exit 1; fi
 
+$(OBJDIR)/u-asm.h: u-lib.hh lib.hh types.h x86-64.h build/mkkernelasm.awk $(BUILDSTAMPS)
+	$(call cxxcompile,-dM -E u-lib.hh | awk -f build/mkkernelasm.awk | sort > $@,CREATE $@)
+	@if test ! -s $@; then echo '* Error creating $@!' 1>&2; exit 1; fi
+
+$(OBJDIR)/k-firstprocess.h:
+	$(call run,echo '#ifndef WEENSYOS_FIRST_PROCESS' >$@; echo '#define WEENSYOS_FIRST_PROCESS "$(WEENSYOS_FIRST_PROCESS)"' >>$@; echo '#endif' >>$@,CREATE $@)
 
 # How to make binaries and the boot sector
+
+PROCESS_BINARIES = $(patsubst %,obj/%,$(PROCESSES))
 
 $(OBJDIR)/kernel.full: $(KERNEL_OBJS) $(PROCESS_BINARIES) $(KERNEL_LINKER_FILES)
 	$(call link,-T $(KERNEL_LINKER_FILES) -o $@ $(KERNEL_OBJS) -b binary $(PROCESS_BINARIES),LINK)
@@ -134,12 +162,6 @@ $(OBJDIR)/mkbootdisk: build/mkbootdisk.cc $(BUILDSTAMPS)
 
 demoos.img: $(OBJDIR)/mkbootdisk $(OBJDIR)/bootsector $(OBJDIR)/kernel
 	$(call run,$(OBJDIR)/mkbootdisk $(OBJDIR)/bootsector $(OBJDIR)/kernel > $@,CREATE $@)
-
-
-# How to make `attack`
-
-attack: attack.cc $(BUILDSTAMPS)
-	$(call run,$(HOSTCXX) $(CPPFLAGS) $(HOSTCXXFLAGS) $(DEPCFLAGS) -o $@,HOSTCOMPILE,$<)
 
 
 # How to run QEMU

@@ -881,10 +881,10 @@ void assert_fail(const char* file, int line, const char* msg) {
 //    Types representing program images. For documentation, please see
 //    `kernel.hh`.
 
-extern uint8_t _binary_obj_p_eve_start[];
-extern uint8_t _binary_obj_p_eve_end[];
-extern uint8_t _binary_obj_p_alice_start[];
-extern uint8_t _binary_obj_p_alice_end[];
+extern uint8_t _binary_obj_p_hello_start[];
+extern uint8_t _binary_obj_p_hello_end[];
+extern uint8_t _binary_obj_p_bigdata_start[];
+extern uint8_t _binary_obj_p_bigdata_end[];
 extern uint8_t _binary_obj_p_recurse_start[];
 extern uint8_t _binary_obj_p_recurse_end[];
 
@@ -893,8 +893,8 @@ struct ramimage {
     void* begin;
     void* end;
 } ramimages[] = {
-    { "eve", _binary_obj_p_eve_start, _binary_obj_p_eve_end },
-    { "alice", _binary_obj_p_alice_start, _binary_obj_p_alice_end },
+    { "hello", _binary_obj_p_hello_start, _binary_obj_p_hello_end },
+    { "bigdata", _binary_obj_p_bigdata_start, _binary_obj_p_bigdata_end },
     { "recurse", _binary_obj_p_recurse_start, _binary_obj_p_recurse_end }
 };
 
