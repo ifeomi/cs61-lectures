@@ -741,14 +741,14 @@ int error_vprintf(int cpos, int color, const char* format, va_list val) {
 
 
 // check_keyboard
-//    Check for the user typing a control key. 'h', 'b', and 'r' cause a soft
-//    reboot where the kernel runs hello, bigdata, or recurse, respectively.
-//    Control-C or 'q' exit the virtual machine. Returns key typed or -1 for
-//    no key.
+//    Check for the user typing a control key. 'h' causes a
+//    soft reboot where the kernel runs hello.
+//    Control-C or 'q' exit the virtual machine. Returns key
+//    typed or -1 for no key.
 
 int check_keyboard() {
     int c = keyboard_readc();
-    if (c == 'h' || c == 'b' || c == 'r') {
+    if (c == 'h' || c == 'x') {
         // Turn off the timer interrupt.
         init_timer(-1);
         // Install a temporary page table to carry us through the
@@ -765,11 +765,6 @@ int check_keyboard() {
         uint32_t multiboot_info[5];
         multiboot_info[0] = 4;
         const char* argument = "hello";
-        if (c == 'b') {
-            argument = "bigdata";
-        } else if (c == 'r') {
-            argument = "recurse";
-        }
         uintptr_t argument_ptr = (uintptr_t) argument;
         assert(argument_ptr < 0x100000000L);
         multiboot_info[4] = (uint32_t) argument_ptr;
@@ -867,8 +862,12 @@ void panic_at(uintptr_t rsp, uintptr_t rbp, uintptr_t rip,
     fail();
 }
 
-void assert_fail(const char* file, int line, const char* msg) {
+void assert_fail(const char* file, int line, const char* msg,
+                 const char* description) {
     cursorpos = CPOS(23, 0);
+    if (description) {
+        error_printf("%s:%d: %s\n", file, line, description);
+    }
     error_printf("%s:%d: kernel assertion '%s' failed\n", file, line, msg);
     error_print_backtrace(rdrsp(), rdrbp());
     fail();
@@ -881,10 +880,8 @@ void assert_fail(const char* file, int line, const char* msg) {
 
 extern uint8_t _binary_obj_p_hello_start[];
 extern uint8_t _binary_obj_p_hello_end[];
-extern uint8_t _binary_obj_p_bigdata_start[];
-extern uint8_t _binary_obj_p_bigdata_end[];
-extern uint8_t _binary_obj_p_recurse_start[];
-extern uint8_t _binary_obj_p_recurse_end[];
+extern uint8_t _binary_obj_p_yielder_start[];
+extern uint8_t _binary_obj_p_yielder_end[];
 
 struct ramimage {
     const char* name;
@@ -892,8 +889,7 @@ struct ramimage {
     void* end;
 } ramimages[] = {
     { "hello", _binary_obj_p_hello_start, _binary_obj_p_hello_end },
-    { "bigdata", _binary_obj_p_bigdata_start, _binary_obj_p_bigdata_end },
-    { "recurse", _binary_obj_p_recurse_start, _binary_obj_p_recurse_end }
+    { "yielder", _binary_obj_p_yielder_start, _binary_obj_p_yielder_end }
 };
 
 program_image::program_image(int program_number) {
