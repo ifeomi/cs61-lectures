@@ -1,13 +1,20 @@
-BASEPROGRAMS = attackme
-PROGRAMS = attackme attackme-unsafe
-all: $(PROGRAMS) attack.txt~ attackfail.txt~
+BASEPROGRAMS = $(sort $(patsubst %.cc,%,$(wildcard [rw]-*.cc)))
+PROGRAMS = $(BASEPROGRAMS)
+all: $(PROGRAMS) $(DATAFILE)
 
 variants = $(1) $(addsuffix -unsafe,$(1)) $(addsuffix -O0,$(1))
 
-PIE ?= 0
+-include config.mk
+ifndef DATAFILE
+DATAFILE = data
+endif
+
 O ?= 3
 COMPILER ?= gcc
 include ../common/rules.mk
+ifneq ($(DATAFILE),data)
+CPPFLAGS += -DDATAFILE='"$(DATAFILE)"'
+endif
 
 UNSAFEFLAGS := -U_FORTIFY_SOURCE -fno-stack-protector $(if $(ISLINUX),-no-pie,)
 
@@ -24,28 +31,31 @@ UNSAFEFLAGS := -U_FORTIFY_SOURCE -fno-stack-protector $(if $(ISLINUX),-no-pie,)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -O1 $(DEPCFLAGS) -o $@ -c $<
 
 
-$(filter-out attackme,$(BASEPROGRAMS)): %: %.o hexdump.o
+$(BASEPROGRAMS): %: %.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(O) -o $@ $^
 
-$(addsuffix -O0,$(BASEPROGRAMS)): %: %.o hexdump.o
+$(addsuffix -O0,$(BASEPROGRAMS)): %: %.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -O0 -o $@ $^
-
-attackme: attackme-O1.o hexdump.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -O1 -o $@ $^
 
 $(addsuffix -unsafe,$(BASEPROGRAMS)): %: %.o hexdump.o
 	$(CXX) $(CXXFLAGS) $(UNSAFEFLAGS) $(LDFLAGS) -O1 -o $@ $^
 
 
-attackfail.txt~: attackme makeattack.pl
-	perl makeattack.pl attackme > attackfail.txt~
+DATASIZE := $(shell wc -c $(DATAFILE) 2>/dev/null | awk '{ print $$1 }')
+DATADEP := $(shell if test "$(DATASIZE)" -lt 51200000 2>/dev/null; then echo always; fi)
 
-attack.txt~: attackme-unsafe makeattack.pl
-	perl makeattack.pl attackme-unsafe > attack.txt~
+$(DATAFILE): $(DATADEP)
+	yes 77777777777777777777777777777777777777777 | tr -d '\n' | head -c 51200000 > $@
+
+ifneq ($(DATAFILE),data)
+data: $(DATAFILE)
+.PHONY: data
+endif
 
 
 clean:
-	rm -rf $(call variants,$(BASEPROGRAMS)) *.o $(DEPSDIR)
+	rm -f $(call variants,$(BASEPROGRAMS)) *.o data
+	rm -rf $(DEPSDIR) *.dSYM
 
 .PHONY: all clean
 .PRECIOUS: %-O0.o %-O1.o %-unsafe.o
