@@ -346,8 +346,9 @@ uintptr_t syscall(regstate* regs) {
 
 // pipe buffer
 
-char pipebuf[1];
+char pipebuf[100];
 size_t pipebuf_len = 0;
+proc* blocked_reader = nullptr;
 
 // syscall_pipewrite([buf, sz])
 //    Handles the SYSCALL_PIPEWRITE system call; see `sys_pipewrite`
@@ -365,9 +366,17 @@ ssize_t syscall_pipewrite(proc* p) {
         return -1;
     } else {
         // write one character
-        pipebuf[0] = buf[0];
-        pipebuf_len = 1;
-        return 1;
+        size_t ncopy = min(sz, sizeof(pipebuf) - pipebuf_len);
+        memcpy(pipebuf + pipebuf_len, buf, sz);
+        pipebuf_len += ncopy;
+        p->regs.reg_rax = ncopy;
+        if (blocked_reader) {
+            proc* blocked_proc = blocked_reader;
+            blocked_reader = nullptr;
+            blocked_proc->state = P_RUNNABLE;
+            syscall_piperead(blocked_proc);
+        }
+        schedule();
     }
 }
 
@@ -384,12 +393,19 @@ ssize_t syscall_piperead(proc* p) {
         return 0;
     } else if (pipebuf_len == 0) {
         // kernel buffer empty, try again
-        return -1;
+        assert(!blocked_reader);
+        blocked_reader = p;
+        p->regs.reg_rax = -1;
+        p->state = P_BLOCKED;
+        schedule();
     } else {
         // read one character
-        buf[0] = pipebuf[0];
-        pipebuf_len = 0;
-        return 1;
+        size_t ncopy = min(sz, pipebuf_len);
+        memcpy(buf, pipebuf, ncopy);
+        memmove(pipebuf, pipebuf + ncopy, pipebuf_len - ncopy);
+        pipebuf_len -= ncopy;
+        p->regs.reg_rax = ncopy;
+        schedule();
     }
 }
 
